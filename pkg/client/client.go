@@ -49,7 +49,7 @@ func (c *Client) Connect(ctx context.Context) chan error {
 	// first lets make sure the connection is valid and ready
 	// we can do this by sending the server a GET request on
 	// $Endpoint/ready
-	resp, err := http.Get(hostURL + fmt.Sprintf("%s%s/ready", hostURL, Endpoint))
+	resp, err := http.Get(hostURL + fmt.Sprintf("%s/ready", Endpoint))
 	if err != nil {
 		panic(err) // we can connect throw an error
 	}
@@ -64,7 +64,7 @@ func (c *Client) Connect(ctx context.Context) chan error {
 	err = json.NewEncoder(&buffer).Encode(models.ClientInfo{CName: c.name})
 
 	resp, err = http.Post(hostURL+
-		fmt.Sprintf("%s%s/register", hostURL, Endpoint),
+		fmt.Sprintf("%s/register", Endpoint),
 		"application/json",
 		&buffer,
 	)
