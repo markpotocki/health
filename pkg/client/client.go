@@ -45,7 +45,7 @@ func MakeClient(name string, config ConnectionConfig) *Client {
 
 func (c *Client) Connect(ctx context.Context) chan error {
 	errchan := make(chan error)
-	hostURL := fmt.Sprintf("%s:%s", c.config.Host, c.config.Port)
+	hostURL := fmt.Sprintf("http://%s:%s", c.config.Host, c.config.Port)
 	// first lets make sure the connection is valid and ready
 	// we can do this by sending the server a GET request on
 	// $Endpoint/ready
@@ -88,6 +88,7 @@ func responder(errchan chan error) {
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 
 	http.Handle("/metrics/health", healthHandler)
