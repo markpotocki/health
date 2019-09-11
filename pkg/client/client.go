@@ -44,7 +44,7 @@ func MakeClient(name string, config ConnectionConfig) *Client {
 }
 
 func (c *Client) Connect(ctx context.Context) chan error {
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	hostURL := fmt.Sprintf("http://%s:%s", c.config.Host, c.config.Port)
 	// first lets make sure the connection is valid and ready
 	// we can do this by sending the server a GET request on
@@ -93,5 +93,7 @@ func responder(errchan chan error) {
 
 	http.Handle("/metrics/health", healthHandler)
 
-	errchan <- http.ListenAndServe(":9999", nil)
+	go func() {
+		errchan <- http.ListenAndServe(":9999", nil)
+	}()
 }
