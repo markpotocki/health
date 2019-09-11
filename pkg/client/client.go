@@ -97,12 +97,9 @@ func responder(errchan chan error) {
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	http.Handle("/metrics/health", healthHandler)
 
-	go func() {
-		errchan <- http.ListenAndServe(":9999", nil)
-	}()
+	errchan <- http.ListenAndServe(":9999", nil)
 }
