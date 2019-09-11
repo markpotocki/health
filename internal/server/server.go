@@ -24,7 +24,7 @@ type StatusStore interface {
 	Find(ClientName string) HealthStatus
 }
 
-type HealthStatus struct { // double dependency should eliminate one (see status-store.go:8)
+type HealthStatus struct {
 	ClientName string
 	Data       models.HealthStatus
 	Updated    int64
@@ -92,7 +92,10 @@ func (srv *Server) pingAll() {
 }
 
 func send(cli models.ClientInfo, respchan chan<- HealthStatus) {
-	resp, err := http.Get(cli.URL())
+	httpcli := http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	}
+	resp, err := httpcli.Get(cli.URL())
 	if err != nil {
 		respchan <- HealthStatus{cli.Name(), errorStatus(err), time.Now().Unix()}
 		return
