@@ -11,6 +11,8 @@ type HealthStatus struct {
 	CPU     HealthStatusCpu     `json:"cpu"`
 	Memory  HealthStatusMem     `json:"mem"`
 	Network HealthStatusNetwork `json:"network"`
+	Down    bool                `json:"down"`
+	Status  string              `json:"status"`
 }
 
 type HealthStatusMem struct {

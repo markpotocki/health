@@ -1,18 +1,15 @@
 package main
 
 import (
-	"log"
-	"time"
-
-	"github.com/markpotocki/health/pkg/models"
+	"github.com/markpotocki/health/internal/server"
+	"github.com/markpotocki/health/internal/server/store"
 )
 
 func main() {
-	for {
-		log.Println("checking stats")
-		hs := models.MakeHealthStatus()
-		log.Println(hs)
-		log.Println("waiting")
-		<-time.After(time.Duration(10 * time.Second))
-	}
+	cs := store.MakeClientStore()
+	ss := store.MakeStatusStore()
+
+	srv := server.MakeServer(cs, ss)
+
+	srv.Start()
 }
