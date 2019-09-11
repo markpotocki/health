@@ -44,8 +44,9 @@ func MakeClient(name string, config ConnectionConfig) *Client {
 }
 
 func (c *Client) Connect(ctx context.Context) chan error {
-	errchan := make(chan error)
-	hostURL := fmt.Sprintf("%s:%s", c.config.Host, c.config.Port)
+	errchan := make(chan error, 1)
+	hostURL := fmt.Sprintf("http://%s:%s", c.config.Host, c.config.Port)
+	log.Println("client: checking if connection is ready")
 	// first lets make sure the connection is valid and ready
 	// we can do this by sending the server a GET request on
 	// $Endpoint/ready
@@ -58,11 +59,16 @@ func (c *Client) Connect(ctx context.Context) chan error {
 		errchan <- ErrServerNotReady(errors.New(errMsg))
 	}
 
+	log.Println("client: aidi server is ready")
+
 	// server is ready for our connections lets setup our pings
 	// the server does not know we are here so we will make it aware
+	log.Println("client: encoding client info to json")
 	buffer := bytes.Buffer{}
 	err = json.NewEncoder(&buffer).Encode(models.ClientInfo{CName: c.name})
+	log.Println("client: value encoded to json")
 
+	log.Println("client: registering with aidi server")
 	resp, err = http.Post(hostURL+
 		fmt.Sprintf("%s/register", Endpoint),
 		"application/json",
@@ -74,7 +80,10 @@ func (c *Client) Connect(ctx context.Context) chan error {
 		panic(err)
 	}
 
+	log.Println("client: registration accepted")
+
 	// we can now listen for requests for our health
+	log.Println("client: opening endpoint for metrics")
 	go responder(errchan)
 
 	return errchan
@@ -88,9 +97,12 @@ func responder(errchan chan error) {
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 
 	http.Handle("/metrics/health", healthHandler)
 
-	errchan <- http.ListenAndServe(":9999", nil)
+	go func() {
+		errchan <- http.ListenAndServe(":9999", nil)
+	}()
 }
