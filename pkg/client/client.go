@@ -92,7 +92,7 @@ func (c *Client) Connect(ctx context.Context) chan error {
 func responder(errchan chan error) {
 	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		crhs := models.MakeHealthStatus()
-		jsonErr := json.NewEncoder(w).Encode(crhs)
+		jsonErr := json.NewEncoder(w).Encode(&crhs)
 		if jsonErr != nil {
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
