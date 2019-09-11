@@ -40,10 +40,17 @@ func MakeServer(clientStore ClientStore, statusStore StatusStore) *Server {
 }
 
 func (srv *Server) Start() {
+	log.Println("server: starting health server")
 	http.HandleFunc("/aidi/register", srv.registerHandler)
 	http.HandleFunc("/aidi/ready", srv.readyHandler)
+	log.Println("server: registering handlers")
 	errchan := make(chan error, 1)
-	errchan <- http.ListenAndServe(":9900", nil)
+
+	go func() {
+		errchan <- http.ListenAndServe(":9900", nil)
+	}()
+
+	log.Println("server: server started correctly")
 	var resetCount int
 	sigQuit := make(chan os.Signal, 1)
 
@@ -56,13 +63,16 @@ func (srv *Server) Start() {
 			log.Println("server: attempting restart")
 			resetCount++
 			if resetCount < 3 {
-				errchan <- http.ListenAndServe(":9900", nil)
+				go func() {
+					errchan <- http.ListenAndServe(":9900", nil)
+				}()
 			}
 		case <-time.After(time.Duration(10 * time.Second)):
 			log.Println("server: sending ping to all clients")
 			go srv.pingAll()
 		case <-sigQuit:
 			log.Println("server: shutdown process beginning")
+			os.Exit(0)
 		}
 	}
 }
@@ -78,7 +88,6 @@ func (srv *Server) pingAll() {
 	respchan := make(chan HealthStatus, 50)
 	go func() {
 		for _, cli := range srv.clientStore.Get() {
-			// bug here if there is no response the goroutine will hang
 			send(cli, respchan)
 		}
 		close(respchan)
