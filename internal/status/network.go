@@ -17,6 +17,7 @@ func init() {
 		vals: list.New(),
 		maxN: 50,
 	}
+	GlobalNetworkInformation.vals.PushFront(0.0) // hopefully fixes NaN issue
 }
 
 func (avger *ResponseAverager) AddVal(val int) {
