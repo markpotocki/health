@@ -71,7 +71,7 @@ func getUtilization() (CPUUtilizationStats, error) {
 
 }
 
-func calculate(lines []string) (total int64, idle int64) {
+func calculate(lines []string) (total uint64, idle uint64) {
 	//var total, idle uint64
 	for _, line := range lines {
 		fields := strings.Fields(line)
@@ -96,4 +96,5 @@ func calculate(lines []string) (total int64, idle int64) {
 			break
 		}
 	}
+	return
 }
