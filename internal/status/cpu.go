@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CPUUtilizationStats holds the usage information on each core of the CPU as well as the
@@ -28,6 +29,7 @@ func CPUUtilization() CPUUtilizationStats {
 }
 
 func getUtilization() (CPUUtilizationStats, error) {
+	// pass # 1
 	path, err := filepath.Abs("/proc/stat")
 	log.Printf("cpu: trying to find on path %s", path)
 	if err != nil {
@@ -38,8 +40,39 @@ func getUtilization() (CPUUtilizationStats, error) {
 		return CPUUtilizationStats{}, err
 	}
 	lines := strings.Split(string(fil), "\n")
+	tot1, idl1 := calculate(lines)
 
-	var total, idle uint64
+	// wait for duration (set 100ms)
+	dur := time.Duration(100 * time.Millisecond)
+	<-time.After(dur)
+
+	// pass #2
+	path, err = filepath.Abs("/proc/stat")
+	log.Printf("cpu: trying to find on path %s", path)
+	if err != nil {
+		return CPUUtilizationStats{}, err
+	}
+	fil, err = ioutil.ReadFile(path)
+	if err != nil {
+		return CPUUtilizationStats{}, err
+	}
+	lines = strings.Split(string(fil), "\n")
+	tot2, idl2 := calculate(lines)
+
+	total := tot2 - tot1
+	idle := idl2 - idl1
+
+	totPerc := uint64(float64(total-idle) / float64(total) * 100)
+	log.Printf("cpu: got percentage %d", totPerc)
+	return CPUUtilizationStats{
+		Total: totPerc,
+		Cores: make([]uint64, 0), // TODO get core stats
+	}, nil
+
+}
+
+func calculate(lines []string) (total int64, idle int64) {
+	//var total, idle uint64
 	for _, line := range lines {
 		fields := strings.Fields(line)
 		log.Printf("fields: %#v", fields)
@@ -63,11 +96,4 @@ func getUtilization() (CPUUtilizationStats, error) {
 			break
 		}
 	}
-	totPerc := uint64(float64(total-idle) / float64(total) * 100)
-	log.Printf("cpu: got percentage %d", totPerc)
-	return CPUUtilizationStats{
-		Total: totPerc,
-		Cores: make([]uint64, 0), // TODO get core stats
-	}, nil
-
 }
