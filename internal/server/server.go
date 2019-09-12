@@ -1,45 +1,62 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/markpotocki/health/pkg/client"
 	"github.com/markpotocki/health/pkg/models"
 )
 
 const port = 9999
 
+// ClientStore is an object that is able to hold records of ClientInfo. It is used as an
+// interface to allow for a database backed solution instead of the memory back one
+// provided.
 type ClientStore interface {
 	Save(models.ClientInfo)
 	Get() []models.ClientInfo
 }
 
+// StatusStore is an object that is able to hold records of ClientInfo. It is used as an
+// interface to allow for a database backed solution instead of the memory back one
+// provided.
 type StatusStore interface {
 	SaveAll(...HealthStatus)
 	Save(HealthStatus)
 	Find(ClientName string) HealthStatus
 }
 
+// HealthStatus contains the data that will be saved into the StatusStore. Contains the
+// health data supplied by the client, the name of the client, and when it was last updated.
 type HealthStatus struct {
 	ClientName string
 	Data       models.HealthStatus
 	Updated    int64
 }
 
+// Server is an aidi server that is able to take in health data from clients that register
+// with it.
 type Server struct {
 	clientStore ClientStore
 	statusStore StatusStore
 }
 
+// MakeServer provides a new Server pointer with the provided ClientStore and StatusStore.
 func MakeServer(clientStore ClientStore, statusStore StatusStore) *Server {
 	return &Server{clientStore, statusStore}
 }
 
+// Start registers the servers handlers, starts up the http server, and registers with
+// itself. If all this is successful, it will run until shutdown, pinging clients at the
+// set interval of 10s.
 func (srv *Server) Start() {
 	log.Println("server: starting health server")
 	http.HandleFunc("/aidi/register", srv.registerHandler)
@@ -52,10 +69,26 @@ func (srv *Server) Start() {
 	}()
 
 	log.Println("server: server started correctly")
+
+	// register client data with self
+	log.Println("server: registering health data with self")
+	selfInfo := client.ConnectionConfig{
+		Host: "localhost",
+		Port: "9900",
+	}
+
+	cli := client.MakeClient("aidi", selfInfo)
+	log.Println("server: self client created")
+
+	cli.Connect(context.Background()) // the error is being ignored
+
+	// running
 	var resetCount int
 	sigQuit := make(chan os.Signal, 1)
 
 	signal.Notify(sigQuit, os.Interrupt)
+	signal.Notify(sigQuit, syscall.SIGTERM)
+	signal.Notify(sigQuit, syscall.SIGINT)
 	for {
 		select {
 		case err := <-errchan:
