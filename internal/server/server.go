@@ -1,14 +1,17 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/markpotocki/health/pkg/client"
 	"github.com/markpotocki/health/pkg/models"
 )
 
@@ -52,10 +55,26 @@ func (srv *Server) Start() {
 	}()
 
 	log.Println("server: server started correctly")
+
+	// register client data with self
+	log.Println("server: registering health data with self")
+	selfInfo := client.ConnectionConfig{
+		Host: "localhost",
+		Port: "9900",
+	}
+
+	cli := client.MakeClient("aidi", selfInfo)
+	log.Println("server: self client created")
+
+	cli.Connect(context.Background()) // the error is being ignored
+
+	// running
 	var resetCount int
 	sigQuit := make(chan os.Signal, 1)
 
 	signal.Notify(sigQuit, os.Interrupt)
+	signal.Notify(sigQuit, syscall.SIGTERM)
+	signal.Notify(sigQuit, syscall.SIGINT)
 	for {
 		select {
 		case err := <-errchan:
