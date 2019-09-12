@@ -92,17 +92,16 @@ func (c *Client) Connect(ctx context.Context) chan error {
 func responder(errchan chan error) {
 	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		crhs := models.MakeHealthStatus()
-		jsonErr := json.NewEncoder(w).Encode(crhs)
+		jsonErr := json.NewEncoder(w).Encode(&crhs)
 		if jsonErr != nil {
+			log.Println("inspectme:: %#v", crhs)
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
+			return
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 
 	http.Handle("/metrics/health", healthHandler)
 
-	go func() {
-		errchan <- http.ListenAndServe(":9999", nil)
-	}()
+	errchan <- http.ListenAndServe(":9999", nil)
 }

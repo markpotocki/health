@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -102,7 +103,7 @@ func (srv *Server) pingAll() {
 
 func send(cli models.ClientInfo, respchan chan<- HealthStatus) {
 	httpcli := http.Client{
-		Timeout: time.Duration(5 * time.Second),
+		Timeout: time.Duration(7 * time.Second),
 	}
 	resp, err := httpcli.Get(cli.URL())
 	if err != nil {
@@ -111,7 +112,8 @@ func send(cli models.ClientInfo, respchan chan<- HealthStatus) {
 	}
 
 	if resp.StatusCode != 200 {
-		respchan <- HealthStatus{cli.Name(), errorStatus(err), time.Now().Unix()}
+		log.Printf("server: tried to reach %s but got bad status", cli.URL())
+		respchan <- HealthStatus{cli.Name(), errorStatus(fmt.Errorf("did not get 200 response, got %d", resp.StatusCode)), time.Now().Unix()}
 		return
 	}
 
@@ -122,5 +124,5 @@ func send(cli models.ClientInfo, respchan chan<- HealthStatus) {
 		return
 	}
 
-	respchan <- HealthStatus{cli.Name(), errorStatus(err), time.Now().Unix()}
+	respchan <- HealthStatus{cli.Name(), hs, time.Now().Unix()}
 }

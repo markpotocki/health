@@ -12,9 +12,9 @@ func ResponseTimer(next http.Handler) http.Handler {
 	times := make(chan int, 100) // buffer a bit for multiple requests at same time
 	go ongoingAverage(times)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now().Unix()
+		start := unixMilli()
 		next.ServeHTTP(w, r)
-		end := time.Now().Unix()
+		end := unixMilli()
 		times <- int(end - start)
 	})
 }
@@ -24,4 +24,9 @@ func ongoingAverage(times <-chan int) {
 		log.Printf("network-stats: updating average with value %d", times)
 		status.GlobalNetworkInformation.AddVal(time)
 	}
+}
+
+func unixMilli() int64 {
+	nano := time.Now().UnixNano()
+	return nano / int64(time.Millisecond)
 }
