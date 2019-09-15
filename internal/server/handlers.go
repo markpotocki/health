@@ -14,6 +14,10 @@ func (srv *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&clientInfo)
 
+	if clientInfo.CPort == 0 {
+		clientInfo.CPort = 9999 // for backwards compatability
+	}
+
 	if err != nil {
 		log.Printf("server-register: bad type recieved %v", err)
 		http.Error(w, "not expected json", http.StatusBadRequest)
@@ -22,7 +26,7 @@ func (srv *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
 	clientAddr := r.RemoteAddr
 	splited := strings.Split(clientAddr, ":")
 	if baseurl := splited[0]; baseurl != "" {
-		clientInfo.CURL = "http://" + baseurl + ":9999/metrics/health"
+		clientInfo.CURL = fmt.Sprintf("http://%s:%d/metrics/health", baseurl, clientInfo.CPort)
 	}
 
 	srv.clientStore.Save(clientInfo)
