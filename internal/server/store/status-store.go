@@ -32,6 +32,7 @@ func (ss *StatusStore) Save(hs server.HealthStatus) {
 	log.Printf("statusstore: adding new entry for %s", hs.ClientName)
 	ss.mutex.Lock()
 	ss.db = append(ss.db, hs)
+	ss.mutex.Unlock()
 }
 
 func (ss *StatusStore) SaveAll(hss ...server.HealthStatus) {
@@ -47,4 +48,8 @@ func (ss *StatusStore) Find(name string) server.HealthStatus { // might need to 
 		}
 	}
 	return server.HealthStatus{}
+}
+
+func (ss *StatusStore) FindAll() []server.HealthStatus {
+	return ss.db
 }
