@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/markpotocki/health/pkg/client"
+	"github.com/markpotocki/health/pkg/handlers"
 	"github.com/markpotocki/health/pkg/models"
 )
 
@@ -32,6 +33,7 @@ type StatusStore interface {
 	SaveAll(...HealthStatus)
 	Save(HealthStatus)
 	Find(ClientName string) HealthStatus
+	FindAll() []HealthStatus
 }
 
 // HealthStatus contains the data that will be saved into the StatusStore. Contains the
@@ -59,8 +61,9 @@ func MakeServer(clientStore ClientStore, statusStore StatusStore) *Server {
 // set interval of 10s.
 func (srv *Server) Start() {
 	log.Println("server: starting health server")
-	http.HandleFunc("/aidi/register", srv.registerHandler)
-	http.HandleFunc("/aidi/ready", srv.readyHandler)
+	http.Handle("/aidi/register", handlers.ResponseTimer(http.HandlerFunc(srv.registerHandler)))
+	http.Handle("/aidi/ready", handlers.ResponseTimer(http.HandlerFunc(srv.readyHandler)))
+	http.Handle("/aidi/health/", handlers.ResponseTimer(http.HandlerFunc(srv.clientInfoHandler)))
 	log.Println("server: registering handlers")
 	errchan := make(chan error, 1)
 
@@ -77,7 +80,7 @@ func (srv *Server) Start() {
 		Port: "9900",
 	}
 
-	cli := client.MakeClient("aidi", selfInfo)
+	cli := client.MakeClient("aidi", 9901, selfInfo)
 	log.Println("server: self client created")
 
 	cli.Connect(context.Background()) // the error is being ignored
@@ -101,7 +104,7 @@ func (srv *Server) Start() {
 					errchan <- http.ListenAndServe(":9900", nil)
 				}()
 			}
-		case <-time.After(time.Duration(10 * time.Second)):
+		case <-time.After(time.Duration(1 * time.Second)):
 			log.Println("server: sending ping to all clients")
 			go srv.pingAll()
 		case <-sigQuit:
