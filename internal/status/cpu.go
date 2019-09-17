@@ -42,8 +42,8 @@ func getUtilization() (CPUUtilizationStats, error) {
 	lines := strings.Split(string(fil), "\n")
 	tot1, idl1 := calculate(lines)
 
-	// wait for duration (set 100ms)
-	dur := time.Duration(100 * time.Millisecond)
+	// wait for duration (set 1000ms)
+	dur := time.Duration(1000 * time.Millisecond)
 	<-time.After(dur)
 
 	// pass #2
