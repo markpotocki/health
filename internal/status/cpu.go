@@ -63,7 +63,6 @@ func getUtilization() (CPUUtilizationStats, error) {
 
 	total := tot.total - prev.total.total // sets the total
 	idle := tot.idle - prev.total.idle
-	log.Printf("total: %d \t idle: %d", total, idle)
 	ret.Total = uint(float64(total-idle) / float64(total) * 100)
 
 	for i, core := range cores {
@@ -103,12 +102,10 @@ func calculate(lines []string) (total utilStats, cores []utilStats) {
 			}
 
 		} else if match, err := regexp.MatchString("^(cpu\\d+){1}$", fields[0]); match {
-			log.Println("match found!")
 			if err != nil {
 				log.Printf("stats: encountered regex error -- %#v", err)
 				continue
 			}
-			log.Printf("parsing value: %s", strings.ReplaceAll(string(fields[0]), "cpu", ""))
 			coreNum, err := strconv.ParseInt(strings.ReplaceAll(string(fields[0]), "cpu", ""), 10, 64)
 			if err != nil {
 				panic(err)
