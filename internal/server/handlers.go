@@ -27,6 +27,7 @@ func (srv *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
 	clientAddr := r.RemoteAddr
 	splited := strings.Split(clientAddr, ":")
 	if baseurl := splited[0]; baseurl != "" {
+		clientInfo.CURL = fmt.Sprintf("http://%s:%d/metrics/health", baseurl, clientInfo.CPort)
     clientInfo.CURL = fmt.Sprintf("http://%s:%d/metrics/health", baseurl, clientInfo.CPort)
 	}
 
