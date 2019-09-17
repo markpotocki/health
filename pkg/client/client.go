@@ -34,12 +34,14 @@ type ConnectionConfig struct {
 type Client struct {
 	config ConnectionConfig
 	name   string
+	port   int
 }
 
-func MakeClient(name string, config ConnectionConfig) *Client {
+func MakeClient(name string, port int, config ConnectionConfig) *Client {
 	return &Client{
 		config: config,
 		name:   name,
+		port:   port,
 	}
 }
 
@@ -65,7 +67,7 @@ func (c *Client) Connect(ctx context.Context) chan error {
 	// the server does not know we are here so we will make it aware
 	log.Println("client: encoding client info to json")
 	buffer := bytes.Buffer{}
-	err = json.NewEncoder(&buffer).Encode(models.ClientInfo{CName: c.name})
+	err = json.NewEncoder(&buffer).Encode(models.ClientInfo{CName: c.name, CPort: c.port})
 	log.Println("client: value encoded to json")
 
 	log.Println("client: registering with aidi server")
@@ -84,12 +86,12 @@ func (c *Client) Connect(ctx context.Context) chan error {
 
 	// we can now listen for requests for our health
 	log.Println("client: opening endpoint for metrics")
-	go responder(errchan)
+	go c.responder(errchan)
 
 	return errchan
 }
 
-func responder(errchan chan error) {
+func (c *Client) responder(errchan chan error) {
 	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		crhs := models.MakeHealthStatus()
 		jsonErr := json.NewEncoder(w).Encode(&crhs)
@@ -103,5 +105,5 @@ func responder(errchan chan error) {
 
 	http.Handle("/metrics/health", healthHandler)
 
-	errchan <- http.ListenAndServe(":9999", nil)
+	errchan <- http.ListenAndServe(fmt.Sprintf(":%d", c.port), nil)
 }
