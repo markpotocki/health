@@ -96,6 +96,7 @@ func (c *Client) responder(errchan chan error) {
 		crhs := models.MakeHealthStatus()
 		jsonErr := json.NewEncoder(w).Encode(&crhs)
 		if jsonErr != nil {
+			log.Println("inspectme:: %#v", crhs)
 			errchan <- ErrResponder(jsonErr)
 			http.Error(w, "Failed to decode json", http.StatusInternalServerError)
 			return
