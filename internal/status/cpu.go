@@ -31,7 +31,6 @@ func CPUUtilization() CPUUtilizationStats {
 func getUtilization() (CPUUtilizationStats, error) {
 	// pass # 1
 	path, err := filepath.Abs("/proc/stat")
-	log.Printf("cpu: trying to find on path %s", path)
 	if err != nil {
 		return CPUUtilizationStats{}, err
 	}
@@ -63,7 +62,6 @@ func getUtilization() (CPUUtilizationStats, error) {
 	idle := idl2 - idl1
 
 	totPerc := uint64(float64(total-idle) / float64(total) * 100)
-	log.Printf("cpu: got percentage %d", totPerc)
 	return CPUUtilizationStats{
 		Total: totPerc,
 		Cores: make([]uint64, 0), // TODO get core stats
@@ -75,7 +73,6 @@ func calculate(lines []string) (total uint64, idle uint64) {
 	//var total, idle uint64
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		log.Printf("fields: %#v", fields)
 		if len(fields) < 1 {
 			continue
 		}
@@ -87,10 +84,8 @@ func calculate(lines []string) (total uint64, idle uint64) {
 					continue
 				}
 				total += conv
-				log.Printf("cpu: adding to total at %d", total)
 				if i == 4 {
 					idle = conv
-					log.Printf("cpu: idle set to %d", idle)
 				}
 			}
 			break
