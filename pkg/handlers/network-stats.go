@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -21,7 +20,6 @@ func ResponseTimer(next http.Handler) http.Handler {
 
 func ongoingAverage(times <-chan int) {
 	for time := range times {
-		log.Printf("network-stats: updating average with value %d", times)
 		status.GlobalNetworkInformation.AddVal(time)
 	}
 }
