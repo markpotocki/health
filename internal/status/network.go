@@ -39,6 +39,12 @@ func (avger *ResponseAverager) Average() float64 {
 	return math.Round(avg*100) / 100
 }
 
-func (avger *ResponseAverager) AverageLastN(n int) {
-
+// AverageLastN returns the average of the last N values seen
+func (avger *ResponseAverager) AverageLastN(n int) float64 {
+	var total int
+	for i := 0; i < n; i++ {
+		total += avger.vals[i]
+	}
+	avg := float64(total) / float64(n)
+	return math.Round(avg*100) / 100
 }
