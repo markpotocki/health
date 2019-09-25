@@ -1,11 +1,15 @@
 package store
 
 import (
+	"errors"
 	"log"
 	"sync"
 
 	"github.com/markpotocki/health/internal/server"
 )
+
+// ErrNotFound is returned when the value is not found
+type ErrNotFound error
 
 type StatusStore struct {
 	db    []server.HealthStatus
@@ -41,13 +45,13 @@ func (ss *StatusStore) SaveAll(hss ...server.HealthStatus) {
 	}
 }
 
-func (ss *StatusStore) Find(name string) server.HealthStatus { // might need to return an error here
+func (ss *StatusStore) Find(name string) (server.HealthStatus, error) { // might need to return an error here
 	for _, hs := range ss.db {
 		if hs.ClientName == name {
-			return hs
+			return hs, nil
 		}
 	}
-	return server.HealthStatus{}
+	return server.HealthStatus{}, ErrNotFound(errors.New("value " + name + " not found"))
 }
 
 func (ss *StatusStore) FindAll() []server.HealthStatus {

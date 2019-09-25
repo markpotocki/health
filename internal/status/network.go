@@ -1,7 +1,6 @@
 package status
 
 import (
-	"container/list"
 	"math"
 )
 
@@ -9,8 +8,9 @@ import (
 // passed the maxN value, the oldest entry is removed and the new one added. Ie, vals.Len()
 // will never be over maxN.
 type ResponseAverager struct {
-	vals *list.List
-	maxN int
+	vals []int
+	curr int
+	div  int
 }
 
 // GlobalNetworkInformation contains the Averager for the time to reply on all http
@@ -19,28 +19,31 @@ var GlobalNetworkInformation *ResponseAverager
 
 func init() {
 	GlobalNetworkInformation = &ResponseAverager{
-		vals: list.New(),
-		maxN: 50,
+		vals: make([]int, 50),
+		div:  0,
 	}
-	GlobalNetworkInformation.vals.PushFront(0) // hopefully fixes NaN issue
 }
 
 // AddVal adds a new value, ensuring that the length of the list is not over maxN.
 // If it is, it will remove the oldest entry, if not it will add like a normal list.
 func (avger *ResponseAverager) AddVal(val int) {
-	if avger.vals.Len() >= avger.maxN {
-		avger.vals.Remove(avger.vals.Front())
-	}
-	avger.vals.PushBack(val)
+	ind := avger.div % 50         // max supported is 50
+	avger.vals[ind] = val         // store the previous value in the next free index
+	avger.curr = avger.curr + val // get our running total
+	avger.div++                   // increment our division counter
 }
 
 // Average gets the mean value of all items in the list.
 func (avger *ResponseAverager) Average() float64 {
-	var total int
-	n := avger.vals.Len()
+	avg := float64(avger.curr) / float64(avger.div)
+	return math.Round(avg*100) / 100
+}
 
-	for val := avger.vals.Front(); val != nil; val = val.Next() {
-		total += val.Value.(int)
+// AverageLastN returns the average of the last N values seen
+func (avger *ResponseAverager) AverageLastN(n int) float64 {
+	var total int
+	for i := 0; i < n; i++ {
+		total += avger.vals[i]
 	}
 	avg := float64(total) / float64(n)
 	return math.Round(avg*100) / 100

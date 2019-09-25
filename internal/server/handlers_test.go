@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +11,12 @@ import (
 	"github.com/markpotocki/health/pkg/models"
 )
 
+
+// Client Information Handler
+// Responses:
+// 	200 - client is found and returned
+// 	404 - client not found
+// 	500 - error decoding json from store (not tested)
 func TestClientInfoHandler(t *testing.T) {
 	t.Run("success-many", cihsuccessAll)
 	t.Run("success-one", cihsuccess)
@@ -25,7 +33,8 @@ func cihsuccessAll(t *testing.T) {
 	request := httptest.NewRequest("GET", "/aidi/info/", nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	handler := http.HandlerFunc(srv.clientInfoHandler)
+
+	handler := http.HandlerFunc(srv.allClientInfoHandler)
 	handler.ServeHTTP(recorder, request)
 
 	resp := recorder.Result()
@@ -83,6 +92,85 @@ func cihnotfound(t *testing.T) {
 	assert(t, resp.StatusCode, 404) // status is 404
 }
 
+
+// Test Register Handler
+// Responses:
+//	200 - registered successfully (could this be created?)
+// 	400 - invalid json format for client
+func TestRegisterHandler(t *testing.T) {
+	t.Run("succeess", rhsuccess)
+	t.Run("bad-request", rhbadrequest)
+}
+
+func rhsuccess(t *testing.T) {
+	// setup
+	srv := Server{
+		clientStore: &mockClientStore{},
+		statusStore: &mockStatusStore{},
+	}
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(defaultClient)
+	check(err)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("POST", "/register", &buf)
+	request.Header.Set("Content-Type", "application/json")
+
+	handler := http.HandlerFunc(srv.registerHandler)
+	handler.ServeHTTP(recorder, request)
+
+	resp := recorder.Result()
+
+	assert(t, resp.StatusCode, 200)
+}
+
+func rhbadrequest(t *testing.T) {
+	// setup
+	srv := Server{
+		clientStore: &mockClientStore{},
+		statusStore: &mockStatusStore{},
+	}
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(defaultStatus)
+	check(err)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("POST", "/register", &buf)
+	request.Header.Set("Content-Type", "application/json")
+
+	handler := http.HandlerFunc(srv.registerHandler)
+	handler.ServeHTTP(recorder, request)
+
+	resp := recorder.Result()
+
+	assert(t, resp.StatusCode, 400)
+}
+
+func TestReadyHandler(t *testing.T) {
+	t.Run("success", readysuccess)
+}
+
+func readysuccess(t *testing.T) {
+	// setup
+	srv := Server{
+		clientStore: &mockClientStore{},
+		statusStore: &mockStatusStore{},
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/ready", nil)
+
+	handler := http.HandlerFunc(srv.registerHandler)
+	handler.ServeHTTP(recorder, request)
+
+	resp := recorder.Result()
+
+	assert(t, resp.StatusCode, 200)
+}
+
+// Utils
+
+
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -134,16 +222,18 @@ const notFoundClient string = "notfound"
 
 func (mss *mockStatusStore) Save(hs HealthStatus)       {}
 func (mss *mockStatusStore) SaveAll(hs ...HealthStatus) {}
-func (mss *mockStatusStore) Find(ClientName string) HealthStatus {
+
+func (mss *mockStatusStore) Find(ClientName string) (HealthStatus, error) {
 	if ClientName == notFoundClient {
-		return HealthStatus{}
+		return HealthStatus{}, errors.New("not found")
 	}
 	return HealthStatus{
 		ClientName: ClientName,
 		Data:       defaultStatus,
 		Updated:    1,
-	}
+	}, nil
 }
 func (mss *mockStatusStore) FindAll() []HealthStatus {
-	return []HealthStatus{mss.Find("test")}
+	foo, _ := mss.Find("test")
+	return []HealthStatus{foo}
 }
