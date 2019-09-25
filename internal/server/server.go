@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -49,11 +50,12 @@ type HealthStatus struct {
 type Server struct {
 	clientStore ClientStore
 	statusStore StatusStore
+	connections sync.Map
 }
 
 // MakeServer provides a new Server pointer with the provided ClientStore and StatusStore.
 func MakeServer(clientStore ClientStore, statusStore StatusStore) *Server {
-	return &Server{clientStore, statusStore}
+	return &Server{clientStore, statusStore, sync.Map{}}
 }
 
 // Start registers the servers handlers, starts up the http server, and registers with
@@ -63,7 +65,7 @@ func (srv *Server) Start() {
 	log.Println("server: starting health server")
 	http.Handle("/aidi/register", handlers.ResponseTimer(http.HandlerFunc(srv.registerHandler)))
 	http.Handle("/aidi/ready", handlers.ResponseTimer(http.HandlerFunc(srv.readyHandler)))
-	http.Handle("/aidi/health/", handlers.ResponseTimer(http.HandlerFunc(srv.clientInfoHandler)))
+	http.Handle("/aidi/health/", http.HandlerFunc(srv.clientInfoHandler))
 	log.Println("server: registering handlers")
 	errchan := make(chan error, 1)
 
@@ -134,6 +136,17 @@ func (srv *Server) pingAll() {
 		log.Printf("server: saving to db %v", resp)
 		srv.statusStore.Save(resp)
 	}
+
+	// we saved it all, notify there is new data
+	go func() {
+		srv.connections.Range(func(key interface{}, val interface{}) bool {
+			log.Printf("DEBUG: sending to %v", key)
+			if ch, ok := val.(chan struct{}); ok {
+				ch <- struct{}{}
+			}
+			return true
+		})
+	}()
 
 }
 

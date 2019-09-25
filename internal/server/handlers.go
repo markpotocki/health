@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/markpotocki/health/pkg/models"
 )
@@ -41,18 +43,42 @@ func (srv *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
-	split := strings.Split(r.URL.Path, "/")
-	i := len(split) - 1
-	info, err := srv.statusStore.Find(split[i])
-	// check if it is not found
-	if err != nil {
-		w.WriteHeader(404)
-	}
 
-	log.Printf("found client %v", info)
-	if info.ClientName == "" {
-		http.Error(w, "could not find the requested client", http.StatusNotFound)
+	// start with http://localhost:0/info/param
+	httpTrim := strings.TrimPrefix(r.RequestURI, "http://")
+	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
+	httpTrim = strings.TrimPrefix(httpTrim, "/")
+	httpTrim = strings.TrimSuffix(httpTrim, "/")
+	shouldPoll := false
+	if poll := r.URL.Query().Get("poll"); poll == "true" {
+		shouldPoll = true
+	}
+	// localhost:0/aidi/info/param/
+	split := strings.Split(httpTrim, "/")
+	if len(split) > 3 {
+		log.Println("server: invalid path in info handler")
+		http.Error(w, "Not Found", http.StatusNotFound)
+	} else if len(split) == 3 {
+		if shouldPoll {
+			longPoll(srv)
+		}
+		info := srv.statusStore.Find(split[2])
+		log.Printf("found client %v", info)
+		if info.ClientName == "" {
+			http.Error(w, "could not find the requested client", http.StatusNotFound)
+		} else {
+			err := json.NewEncoder(w).Encode(&info)
+			if err != nil {
+				log.Printf("server: encountered error decoding json: %v", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
+		}
 	} else {
+		if shouldPoll {
+			longPoll(srv)
+		}
+		info := srv.statusStore.FindAll()
+
 		err := json.NewEncoder(w).Encode(&info)
 		if err != nil {
 			log.Printf("server: encountered error decoding json: %v", err)
@@ -61,11 +87,20 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *Server) allClientInfoHandler(w http.ResponseWriter, r *http.Request) {
-	info := srv.statusStore.FindAll()
-	err := json.NewEncoder(w).Encode(&info)
-	if err != nil {
-		log.Printf("server: encountered error decoding json: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-	}
+func longPoll(srv *Server) {
+	newDataChan := make(chan struct{})
+	log.Println("long-polling: registering signal channel")
+	conID := getConnectionId()
+	srv.connections.Store(conID, newDataChan)
+	log.Println("long-polling: added connected")
+	log.Printf("long-polling: current connections -- %v", &srv.connections)
+	<-newDataChan
+	srv.connections.Delete(conID)
+	log.Println("long-polling: recieved new data")
+}
+
+func getConnectionId() int64 {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Int63()
+
 }
