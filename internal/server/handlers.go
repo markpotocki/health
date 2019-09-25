@@ -43,6 +43,7 @@ func (srv *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
+
 	// start with http://localhost:0/info/param
 	httpTrim := strings.TrimPrefix(r.RequestURI, "http://")
 	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
@@ -77,6 +78,7 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 			longPoll(srv)
 		}
 		info := srv.statusStore.FindAll()
+
 		err := json.NewEncoder(w).Encode(&info)
 		if err != nil {
 			log.Printf("server: encountered error decoding json: %v", err)
@@ -100,4 +102,5 @@ func longPoll(srv *Server) {
 func getConnectionId() int64 {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Int63()
+
 }
