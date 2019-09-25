@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/markpotocki/health/pkg/models"
 )
@@ -46,12 +48,19 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
 	httpTrim = strings.TrimPrefix(httpTrim, "/")
 	httpTrim = strings.TrimSuffix(httpTrim, "/")
+	shouldPoll := false
+	if poll := r.URL.Query().Get("poll"); poll == "true" {
+		shouldPoll = true
+	}
 	// localhost:0/aidi/info/param/
 	split := strings.Split(httpTrim, "/")
 	if len(split) > 3 {
 		log.Println("server: invalid path in info handler")
 		http.Error(w, "Not Found", http.StatusNotFound)
 	} else if len(split) == 3 {
+		if shouldPoll {
+			longPoll(srv)
+		}
 		info := srv.statusStore.Find(split[2])
 		log.Printf("found client %v", info)
 		if info.ClientName == "" {
@@ -64,6 +73,9 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
+		if shouldPoll {
+			longPoll(srv)
+		}
 		info := srv.statusStore.FindAll()
 		err := json.NewEncoder(w).Encode(&info)
 		if err != nil {
@@ -71,5 +83,21 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		}
 	}
+}
 
+func longPoll(srv *Server) {
+	newDataChan := make(chan struct{})
+	log.Println("long-polling: registering signal channel")
+	conID := getConnectionId()
+	srv.connections.Store(conID, newDataChan)
+	log.Println("long-polling: added connected")
+	log.Printf("long-polling: current connections -- %v", &srv.connections)
+	<-newDataChan
+	srv.connections.Delete(conID)
+	log.Println("long-polling: recieved new data")
+}
+
+func getConnectionId() int64 {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Int63()
 }
