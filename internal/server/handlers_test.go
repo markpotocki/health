@@ -25,7 +25,7 @@ func cihsuccessAll(t *testing.T) {
 	request := httptest.NewRequest("GET", "/aidi/info/", nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	handler := http.HandlerFunc(srv.clientInfoHandler)
+	handler := http.HandlerFunc(srv.allClientInfoHandler)
 	handler.ServeHTTP(recorder, request)
 
 	resp := recorder.Result()

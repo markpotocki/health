@@ -41,35 +41,26 @@ func (srv *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
-	// start with http://localhost:0/info/param
-	httpTrim := strings.TrimPrefix(r.RequestURI, "http://")
-	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
-	httpTrim = strings.TrimPrefix(httpTrim, "/")
-	httpTrim = strings.TrimSuffix(httpTrim, "/")
-	// localhost:0/aidi/info/param/
-	split := strings.Split(httpTrim, "/")
-	if len(split) > 3 {
-		log.Println("server: invalid path in info handler")
-		http.Error(w, "Not Found", http.StatusNotFound)
-	} else if len(split) == 3 {
-		info := srv.statusStore.Find(split[2])
-		log.Printf("found client %v", info)
-		if info.ClientName == "" {
-			http.Error(w, "could not find the requested client", http.StatusNotFound)
-		} else {
-			err := json.NewEncoder(w).Encode(&info)
-			if err != nil {
-				log.Printf("server: encountered error decoding json: %v", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-			}
-		}
+	split := strings.Split(r.URL.Path, "/")
+	i := len(split) - 1
+	info := srv.statusStore.Find(split[i])
+	log.Printf("found client %v", info)
+	if info.ClientName == "" {
+		http.Error(w, "could not find the requested client", http.StatusNotFound)
 	} else {
-		info := srv.statusStore.FindAll()
 		err := json.NewEncoder(w).Encode(&info)
 		if err != nil {
 			log.Printf("server: encountered error decoding json: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		}
 	}
+}
 
+func (srv *Server) allClientInfoHandler(w http.ResponseWriter, r *http.Request) {
+	info := srv.statusStore.FindAll()
+	err := json.NewEncoder(w).Encode(&info)
+	if err != nil {
+		log.Printf("server: encountered error decoding json: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
 }
