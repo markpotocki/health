@@ -49,19 +49,14 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
 	httpTrim = strings.TrimPrefix(httpTrim, "/")
 	httpTrim = strings.TrimSuffix(httpTrim, "/")
-	shouldPoll := false
-	if poll := r.URL.Query().Get("poll"); poll == "true" {
-		shouldPoll = true
-	}
+
 	// localhost:0/aidi/info/param/
 	split := strings.Split(httpTrim, "/")
 	if len(split) > 3 {
 		log.Println("server: invalid path in info handler")
 		http.Error(w, "Not Found", http.StatusNotFound)
 	} else if len(split) == 3 {
-		if shouldPoll {
-			longPoll(srv)
-		}
+
 		info := srv.statusStore.Find(split[2])
 		log.Printf("found client %v", info)
 		if info.ClientName == "" {

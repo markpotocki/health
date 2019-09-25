@@ -11,6 +11,7 @@ import (
 	"github.com/markpotocki/health/pkg/models"
 )
 
+
 // Client Information Handler
 // Responses:
 // 	200 - client is found and returned
@@ -31,6 +32,7 @@ func cihsuccessAll(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest("GET", "/aidi/info/", nil)
 	request.Header.Set("Content-Type", "application/json")
+
 
 	handler := http.HandlerFunc(srv.allClientInfoHandler)
 	handler.ServeHTTP(recorder, request)
@@ -89,6 +91,7 @@ func cihnotfound(t *testing.T) {
 	// check
 	assert(t, resp.StatusCode, 404) // status is 404
 }
+
 
 // Test Register Handler
 // Responses:
@@ -167,6 +170,7 @@ func readysuccess(t *testing.T) {
 
 // Utils
 
+
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -218,6 +222,7 @@ const notFoundClient string = "notfound"
 
 func (mss *mockStatusStore) Save(hs HealthStatus)       {}
 func (mss *mockStatusStore) SaveAll(hs ...HealthStatus) {}
+
 func (mss *mockStatusStore) Find(ClientName string) (HealthStatus, error) {
 	if ClientName == notFoundClient {
 		return HealthStatus{}, errors.New("not found")
