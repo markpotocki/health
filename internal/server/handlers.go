@@ -43,7 +43,12 @@ func (srv *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 	split := strings.Split(r.URL.Path, "/")
 	i := len(split) - 1
-	info := srv.statusStore.Find(split[i])
+	info, err := srv.statusStore.Find(split[i])
+	// check if it is not found
+	if err != nil {
+		w.WriteHeader(404)
+	}
+
 	log.Printf("found client %v", info)
 	if info.ClientName == "" {
 		http.Error(w, "could not find the requested client", http.StatusNotFound)
