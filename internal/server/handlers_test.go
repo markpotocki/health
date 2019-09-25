@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +26,7 @@ func cihsuccessAll(t *testing.T) {
 	request := httptest.NewRequest("GET", "/aidi/info/", nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	handler := http.HandlerFunc(srv.clientInfoHandler)
+	handler := http.HandlerFunc(srv.allClientInfoHandler)
 	handler.ServeHTTP(recorder, request)
 
 	resp := recorder.Result()
@@ -134,16 +135,17 @@ const notFoundClient string = "notfound"
 
 func (mss *mockStatusStore) Save(hs HealthStatus)       {}
 func (mss *mockStatusStore) SaveAll(hs ...HealthStatus) {}
-func (mss *mockStatusStore) Find(ClientName string) HealthStatus {
+func (mss *mockStatusStore) Find(ClientName string) (HealthStatus, error) {
 	if ClientName == notFoundClient {
-		return HealthStatus{}
+		return HealthStatus{}, errors.New("not found")
 	}
 	return HealthStatus{
 		ClientName: ClientName,
 		Data:       defaultStatus,
 		Updated:    1,
-	}
+	}, nil
 }
 func (mss *mockStatusStore) FindAll() []HealthStatus {
-	return []HealthStatus{mss.Find("test")}
+	foo, _ := mss.Find("test")
+	return []HealthStatus{foo}
 }
