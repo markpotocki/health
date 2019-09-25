@@ -1,3 +1,4 @@
+// server contains all the server and its handlers.
 package server
 
 import (
