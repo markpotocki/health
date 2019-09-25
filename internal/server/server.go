@@ -137,10 +137,11 @@ func (srv *Server) pingAll() {
 
 }
 
+var httpcli = http.Client{
+	Timeout: time.Duration(7 * time.Second),
+}
+
 func send(cli models.ClientInfo, respchan chan<- HealthStatus) {
-	httpcli := http.Client{
-		Timeout: time.Duration(7 * time.Second),
-	}
 	resp, err := httpcli.Get(cli.URL())
 	if err != nil {
 		respchan <- HealthStatus{cli.Name(), errorStatus(err), time.Now().Unix()}
