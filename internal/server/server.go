@@ -32,7 +32,7 @@ type ClientStore interface {
 type StatusStore interface {
 	SaveAll(...HealthStatus)
 	Save(HealthStatus)
-	Find(ClientName string) HealthStatus
+	Find(ClientName string) (HealthStatus, error)
 	FindAll() []HealthStatus
 }
 
