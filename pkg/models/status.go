@@ -22,8 +22,9 @@ type HealthStatusMem struct {
 }
 
 type HealthStatusCpu struct {
-	Cores       int `json:"cores"`
-	Utilization int `json:"use"`
+	Cores           int    `json:"cores"`
+	Utilization     uint   `json:"use"`
+	CoreUtilization []uint `json:"core_util"`
 }
 
 type HealthStatusNetwork struct {
@@ -48,8 +49,9 @@ func MakeHealthStatus() HealthStatus {
 
 	hs := HealthStatus{
 		CPU: HealthStatusCpu{
-			Cores:       cpuCores,
-			Utilization: int(cpuUtil.Total),
+			Cores:           cpuCores,
+			Utilization:     cpuUtil.Total,
+			CoreUtilization: cpuUtil.Cores,
 		},
 		Memory: HealthStatusMem{
 			ProcUsed:  heapUsedMem,

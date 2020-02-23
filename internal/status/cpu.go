@@ -4,16 +4,17 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // CPUUtilizationStats holds the usage information on each core of the CPU as well as the
 // total CPU usage. The information is represented as a percentage of utilization.
 type CPUUtilizationStats struct {
-	Total uint64
-	Cores []uint64
+	Total uint
+	Cores []uint
 }
 
 // CPUUtilization gets the percentage of cpu utilization from the computer it is running on.
@@ -28,10 +29,22 @@ func CPUUtilization() CPUUtilizationStats {
 
 }
 
+type utilStats struct {
+	total uint64
+	idle  uint64
+}
+
+var prev = struct {
+	total utilStats
+	cores []utilStats
+}{
+	utilStats{0, 0},
+	make([]utilStats, runtime.NumCPU()),
+}
+
 func getUtilization() (CPUUtilizationStats, error) {
 	// pass # 1
 	path, err := filepath.Abs("/proc/stat")
-	log.Printf("cpu: trying to find on path %s", path)
 	if err != nil {
 		return CPUUtilizationStats{}, err
 	}
@@ -40,60 +53,75 @@ func getUtilization() (CPUUtilizationStats, error) {
 		return CPUUtilizationStats{}, err
 	}
 	lines := strings.Split(string(fil), "\n")
-	tot1, idl1 := calculate(lines)
+	tot, cores := calculate(lines)
+	defer func() {
+		prev.total = tot
+		prev.cores = cores
+	}()
 
-	// wait for duration (set 1000ms)
-	dur := time.Duration(1000 * time.Millisecond)
-	<-time.After(dur)
+	ret := CPUUtilizationStats{}
 
-	// pass #2
-	path, err = filepath.Abs("/proc/stat")
-	log.Printf("cpu: trying to find on path %s", path)
-	if err != nil {
-		return CPUUtilizationStats{}, err
+	total := tot.total - prev.total.total // sets the total
+	idle := tot.idle - prev.total.idle
+	ret.Total = uint(float64(total-idle) / float64(total) * 100)
+
+	for i, core := range cores {
+		total = core.total - prev.cores[i].total // sets the total
+		idle := core.idle - prev.cores[i].idle
+		ret.Cores = append(ret.Cores, uint(float64(total-idle)/float64(total)*100))
 	}
-	fil, err = ioutil.ReadFile(path)
-	if err != nil {
-		return CPUUtilizationStats{}, err
-	}
-	lines = strings.Split(string(fil), "\n")
-	tot2, idl2 := calculate(lines)
 
-	total := tot2 - tot1
-	idle := idl2 - idl1
-
-	totPerc := uint64(float64(total-idle) / float64(total) * 100)
-	log.Printf("cpu: got percentage %d", totPerc)
-	return CPUUtilizationStats{
-		Total: totPerc,
-		Cores: make([]uint64, 0), // TODO get core stats
-	}, nil
+	return ret, nil
 
 }
 
-func calculate(lines []string) (total uint64, idle uint64) {
+func calculate(lines []string) (total utilStats, cores []utilStats) {
 	//var total, idle uint64
+	cores = make([]utilStats, runtime.NumCPU())
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		log.Printf("fields: %#v", fields)
 		if len(fields) < 1 {
 			continue
 		}
-		if fields[0] == "cpu" {
+		if match, err := regexp.MatchString("^(cpu){1}$", fields[0]); match {
+			if err != nil {
+				log.Printf("stats: encountered regex error -- %#v", err)
+				continue
+			}
+
 			for i := 1; i < len(fields); i++ {
 				conv, err := strconv.ParseUint(fields[i], 10, 64)
 				if err != nil {
 					log.Printf("stats: encountered error -- %#v", err)
 					continue
 				}
-				total += conv
-				log.Printf("cpu: adding to total at %d", total)
+				total.total += conv
 				if i == 4 {
-					idle = conv
-					log.Printf("cpu: idle set to %d", idle)
+					total.idle = conv
 				}
 			}
-			break
+
+		} else if match, err := regexp.MatchString("^(cpu\\d+){1}$", fields[0]); match {
+			if err != nil {
+				log.Printf("stats: encountered regex error -- %#v", err)
+				continue
+			}
+			coreNum, err := strconv.ParseInt(strings.ReplaceAll(string(fields[0]), "cpu", ""), 10, 64)
+			if err != nil {
+				panic(err)
+			}
+
+			for i := 1; i < len(fields); i++ {
+				conv, err := strconv.ParseUint(fields[i], 10, 64)
+				if err != nil {
+					log.Printf("stats: encountered error -- %#v", err)
+					continue
+				}
+				cores[coreNum].total += conv
+				if i == 4 {
+					cores[coreNum].idle = conv
+				}
+			}
 		}
 	}
 	return

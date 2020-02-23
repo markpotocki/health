@@ -27,3 +27,9 @@ func TestGetUtilization(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func BenchmarkGetUtilization(b *testing.B) {
+	// call twice to compare true difference
+	getUtilization()
+	getUtilization()
+}

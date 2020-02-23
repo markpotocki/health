@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/markpotocki/health/pkg/models"
 )
@@ -41,18 +43,22 @@ func (srv *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
+
 	// start with http://localhost:0/info/param
 	httpTrim := strings.TrimPrefix(r.RequestURI, "http://")
 	httpTrim = strings.TrimPrefix(r.RequestURI, "https://")
 	httpTrim = strings.TrimPrefix(httpTrim, "/")
-	log.Println("FIND ME::  " + httpTrim)
+	httpTrim = strings.TrimSuffix(httpTrim, "/")
+
 	// localhost:0/aidi/info/param/
 	split := strings.Split(httpTrim, "/")
-	if len(split) > 4 {
+	if len(split) > 3 {
 		log.Println("server: invalid path in info handler")
 		http.Error(w, "Not Found", http.StatusNotFound)
-	} else if len(split) == 4 {
-		info := srv.statusStore.Find(split[3])
+	} else if len(split) == 3 {
+
+		info := srv.statusStore.Find(split[2])
+		log.Printf("found client %v", info)
 		if info.ClientName == "" {
 			http.Error(w, "could not find the requested client", http.StatusNotFound)
 		} else {
@@ -63,12 +69,33 @@ func (srv *Server) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
+		if shouldPoll {
+			longPoll(srv)
+		}
 		info := srv.statusStore.FindAll()
+
 		err := json.NewEncoder(w).Encode(&info)
 		if err != nil {
 			log.Printf("server: encountered error decoding json: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		}
 	}
+}
+
+func longPoll(srv *Server) {
+	newDataChan := make(chan struct{})
+	log.Println("long-polling: registering signal channel")
+	conID := getConnectionId()
+	srv.connections.Store(conID, newDataChan)
+	log.Println("long-polling: added connected")
+	log.Printf("long-polling: current connections -- %v", &srv.connections)
+	<-newDataChan
+	srv.connections.Delete(conID)
+	log.Println("long-polling: recieved new data")
+}
+
+func getConnectionId() int64 {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Int63()
 
 }
